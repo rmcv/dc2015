@@ -16,7 +16,7 @@ Create some utility functions to simplify parsing html table
 
 (defn- read-data [url]
   (let [d    (parse-slurp url)
-        hdrs (read-hdrs "table" d)]
+  hdrs (read-hdrs "table" d)]
     (->> (extract-from d "table tr" [:x] "td" text)
          (map :x)
          (remove nil?)
@@ -24,7 +24,7 @@ Create some utility functions to simplify parsing html table
 #+END_SRC
 
 *** Step 2 - results
-Normalize the result table (i.e. split the merged cell)
+Ungroup the result table (i.e. split the merged cell)
 #+BEGIN_SRC clojure
 (->> (extract-from data "table.contents2 tr" [:x :y] "td[rowspan]" text "td" text)
      (remove #(every? nil? (vals %)))
