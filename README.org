@@ -16,7 +16,7 @@ Create some utility functions to simplify parsing html table
 
 (defn- read-data [url]
   (let [d    (parse-slurp url)
-  hdrs (read-hdrs "table" d)]
+        hdrs (read-hdrs "table" d)]
     (->> (extract-from d "table tr" [:x] "td" text)
          (map :x)
          (remove nil?)
