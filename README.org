@@ -4,7 +4,13 @@ Some Clojure scripts to digest Hong Kong District Council Election.
 
 ** Overview
 
-*** Step 1
+*** Elected Ratio Analysis
+[[https://github.com/rmcv/dc2015/blob/master/Elected%2520Ratio%2520Pan%2520Democracy.jpg][Pan-democracy]]
+[[https://github.com/rmcv/dc2015/blob/master/Elected%2520Ratio%2520Pan%2520Establishment.jpg][Pan-establishment]]
+[[https://github.com/rmcv/dc2015/blob/master/Elected%2520Ratio%2520Others.jpg][Others]]
+
+*** Processing
+**** Step 1
 Create some utility functions to simplify parsing html table
 
 #+BEGIN_SRC clojure
@@ -23,7 +29,7 @@ Create some utility functions to simplify parsing html table
          (map #(zipmap hdrs %)))))
 #+END_SRC
 
-*** Step 2 - results
+**** Step 2 - results
 Ungroup the result table (i.e. split the merged cell)
 #+BEGIN_SRC clojure
 (->> (extract-from data "table.contents2 tr" [:x :y] "td[rowspan]" text "td" text)
@@ -38,7 +44,7 @@ Ungroup the result table (i.e. split the merged cell)
      to-dataset)
 #+END_SRC
 
-*** Step 3 - noms
+**** Step 3 - noms
 Use the utility functions created in [[Step 1]] to parse the master nomination table
 #+BEGIN_SRC clojure
 (->> "http://www.elections.gov.hk/dc2015/pdf/2015_DCE_Valid_Nominations_C.html"
@@ -46,7 +52,7 @@ Use the utility functions created in [[Step 1]] to parse the master nomination t
      to-dataset)
 #+END_SRC
 
-*** Step 4 - noms2
+**** Step 4 - noms2
 Collect all other nomination data
 #+BEGIN_SRC clojure
 (->> (extract-from (parse-slurp "http://www.elections.gov.hk/dc2015/chi/nominat2.html")
@@ -61,13 +67,13 @@ Collect all other nomination data
      to-dataset)
 #+END_SRC
 
-*** Step 5 - mm
+**** Step 5 - mm
 Join the tables created in [[Step 3 - noms]] and [[Step 4 - noms2]]
 #+BEGIN_SRC clojure
 ($join [["選區代號" "獲提名人士姓名 (姓氏先行)"] ["選區號碼" "姓名"]] noms2 noms)
 #+END_SRC
 
-*** Step 6
+**** Step 6
 Final step - join the nomination data with election result and output to Excel
 #+BEGIN_SRC clojure
 (-> ($join [["選區號碼" "候選人編號"] ["Constituency Code" "Candidate Number"]]
