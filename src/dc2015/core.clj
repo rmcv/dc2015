@@ -24,7 +24,7 @@
          (map #(zipmap hdrs %)))))
 
 ;;
-;; District name to code mapping
+;; District name to constituency code mapping
 ;;
 
 (def district-map
@@ -56,13 +56,13 @@
                      last
                      (map #(zipmap hdrs %))
                      to-dataset
-                     (add-derived-column "Votes" ["No. of Votes Received"]
+                     (add-derived-column :Votes ["No. of Votes Received"]
                                          #(let [x (-> (re-find #"[0-9,]*" %)
                                                       (clojure.string/replace "," ""))]
                                             (read-string (if (empty? x) "0" x))))
-                     (add-derived-column "Win" ["No. of Votes Received"]
+                     (add-derived-column :Win ["No. of Votes Received"]
                                          #(if (re-find #"\*" %) 1 0))
-                     (add-derived-column "Contested" ["No. of Votes Received"]
+                     (add-derived-column :Contested ["No. of Votes Received"]
                                          #(if (re-find #"Uncontest" %) 0 1)))
         noms    (->> "http://www.elections.gov.hk/dc2015/pdf/2015_DCE_Valid_Nominations_C.html"
                      read-data
@@ -90,17 +90,28 @@
 ;;
 
 (def by-region
-  (->> ($where {"Win" 1} result)
-       ($rollup :count "Win" [:region])))
+  (->> ($where {:Win 1} result)
+       ($rollup :count :Win [:region])))
 
-(defn- region-color [val min max]
-  (ip/lerp-color (ip/color 0x4499CC) (ip/color 0xCC4444) (ip/norm val min max)))
+(def by-party-region
+  (let [clean-party         #(if (nil? %)
+                               "Others"
+                               (condp re-find %
+                                 #"(民建聯|工聯會|勞聯|自由黨|新民黨|經民聯|工會聯合會)" "Pan-Establishment"
+                                 #"(民主黨|公民黨|新民主同盟|工黨|社民連|人民力量|民協)" "Pan-Democracy"
+                                 #"[\s\S\w\W]"                                           "Others"))
+        contesters          (->> ($where {:Contested 1} result)
+                                 (add-derived-column :Party ["政治聯繫"] clean-party))
+        group-by-key        [:region :Party]
+        contested-by-region (->> contesters
+                                 ($rollup :count :Contested group-by-key))
+        win-by-party        (->> contesters
+                                 ($where {:Win 1})
+                                 ($rollup :count :Win group-by-key)
+                                 ($order [:region :Contested] :desc))]
+    (->> ($join [group-by-key group-by-key] contested-by-region win-by-party)
+         (add-derived-column :hit [:Win :Contested] #(float (/ %1 %2))))))
 
-(defn- map-color [regions]
-  (let [min (apply min ($ "Win" regions))
-        max (apply max ($ "Win" regions))
-        m   (into {} (to-vect regions))]
-    (zipmap (keys m) (map #(region-color % min max) (vals m)))))
 
 ;;
 ;; Lookup map id from region name
@@ -119,22 +130,39 @@
 ;; Draw HK heatmap
 ;;
 
-(defn hkmap [regions]
+(defn- region-color [val min max]
+  (ip/lerp-color (ip/color 0xFFFFFF) (ip/color 0x0099FF) (ip/norm val min max)))
+
+(defn- map-color [ds & {:keys [low high]}]
+  (let [min (or low (apply min ($ :hit ds)))
+        max (or high (apply max ($ :hit ds)))]
+    (zipmap (->> ds
+                 ($ :region)
+                 (map name)
+                 (map region->id))
+            (map #(region-color % min max) ($ :hit ds)))))
+
+(defn- hkmap [& data]
   (ip/sketch
    (setup [])
    (draw []
          (let [m (ip/load-shape this "hk.svg")]
            (.disableStyle m)
-           (.fill this (ip/color 0xAEBABA))
+           (.fill this (ip/color 0xFFFFFF))
            (.shape this m 0 0)
-           (doseq [[k v] (map-color regions)]
-               (let [k     (region->id (name k))
-                     child (.getChild m k)]
+           (doseq [[k v] (apply map-color data)]
+             (let [child (.getChild m (name k))]
                (.disableStyle child)
                (.fill this v)
-               #_(.noStroke this)
                (.shape this child 0 0)
                ip/no-loop))))))
 
-(view (hkmap by-region) :size [640 480])
+(defn view-map [party]
+  (let [ds ($ [:region :hit] (->> by-party-region ($where {:Party party})))]
+    (view (hkmap ds :low 0) :size [640 480] :title (str "Elected Ratio - " party))))
+
+(view-map "Pan-Democracy")
+(view-map "Pan-Establishment")
+(view-map "Others")
+(view by-party-region)
 
