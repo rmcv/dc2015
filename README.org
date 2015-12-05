@@ -5,9 +5,9 @@ Some Clojure scripts to digest Hong Kong District Council Election.
 ** Overview
 
 *** Elected Ratio Analysis
-[[./master/Elected%20Ratio%20Pan%20Democracy.jpg]]
-[[./master/Elected%20Ratio%20Pan%20Establishment.jpg]]
-[[./master/Elected%20Others.jpg]]
+[[./Elected%20Ratio%20Pan%20Democracy.jpg]]
+[[./Elected%20Ratio%20Pan%20Establishment.jpg]]
+[[./Elected%20Others.jpg]]
 
 *** Processing
 **** Step 1
